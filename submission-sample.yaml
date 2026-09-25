@@ -1,0 +1,50 @@
+# Coldline - Task 3.9
+# File: submission-sample.yaml
+# Component: Fictional completed answer sheet
+# Purpose: Show the accepted shape.
+# Interacts With: docs/contracts/submission.schema.json
+# Sprint/Task: Sprint 3 - Project 3 / Task 3.9
+# Concepts: Answer-sheet shape
+# Tools: YAML
+
+# Complete submission.yaml from your own runs and the sources named beside each answer group.
+# Keep the supplied keys; replace empty strings and zeros using each field's stated type.
+# Empty values and placeholder text fail verification.
+# Use submission-sample.yaml for format only; do not copy its fictional values.
+# Do not include secrets, personal data, or local absolute paths.
+# This fictional sample is not a result to submit; an exact copy is rejected.
+
+answers:
+  runs:
+    split:
+      readings_p95_ms: 98.7
+      status_p95_ms: 65.4
+      throughput_per_second: 9.87
+      failure_window_errors: 42
+      sampled_trace_id: "9f8e7d6c5b4a39281706f5e4d3c2b1a0"
+    single:
+      readings_p95_ms: 87.6
+      status_p95_ms: 54.3
+      throughput_per_second: 8.76
+      failure_window_errors: 24
+      sampled_trace_id: "0a1b2c3d4e5f60718293a4b5c6d7e8f9"
+  trace_pair:
+    split_trace_id: "9f8e7d6c5b4a39281706f5e4d3c2b1a0"
+    single_trace_id: "0a1b2c3d4e5f60718293a4b5c6d7e8f9"
+    note: "Fictional: both traces show the accept span ending before the summarize span begins; the failure reached only the summarize span in one and the accept span too in the other."
+  comparison:
+    latency:
+      split_effect: "hurt"
+      evidence: "summaries"
+      note: "Fictional: readings p95 98.7 ms split against 87.6 ms single; status p95 65.4 ms against 54.3 ms."
+    throughput:
+      split_effect: "hurt"
+      evidence: "both"
+      note: "Fictional: 9.87 against 8.76 readings per second, inside the spread of two laptop runs."
+    blast_radius:
+      split_effect: "hurt"
+      evidence: "traces"
+      note: "Fictional: the failure window held 42 errors in the split run and 24 in the single run."
+  recommendation:
+    decision: "run_single"
+    note: "Fictional: one process answered faster and lost less to the failure in these two runs, so I would tell Dana to run single and to keep one on-call rota instead of two. Two runs on one laptop do not show what happens across a month of clinic traffic or on two hosts."

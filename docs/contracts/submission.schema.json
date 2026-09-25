@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Coldline Task 3.9 public answer contract. The figures copied from the student's own two run summaries, the pair of sampled traces they compared, a structured comparison on three dimensions, and the recommendation. The topology contract checks compare the run figures and the trace ids with the generated summaries as written; the protected check compares the comparison's split_effect values and the recommendation's decision with the answer key. There is no self-attestation field, no pass boolean, and no recording URL.",
+  "title": "Coldline Task 3.9 answers",
+  "description": "Run figures from both profiles, the trace pair, the three-dimension comparison, and the recommendation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["answers"],
+  "properties": {
+    "answers": {
+      "description": "The only top-level answer mapping accepted by the public verifier.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs", "trace_pair", "comparison", "recommendation"],
+      "properties": {
+        "runs": {
+          "description": "The five fields copied, as written, from each profile's generated summary.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["split", "single"],
+          "properties": {
+            "split": {"$ref": "#/$defs/run"},
+            "single": {"$ref": "#/$defs/run"}
+          }
+        },
+        "trace_pair": {
+          "description": "One sampled trace id from each summary and what the two traces show.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["split_trace_id", "single_trace_id", "note"],
+          "properties": {
+            "split_trace_id": {"$ref": "#/$defs/trace_id"},
+            "single_trace_id": {"$ref": "#/$defs/trace_id"},
+            "note": {
+              "description": "What the two traces show about where the time went and what the failure reached.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            }
+          }
+        },
+        "comparison": {
+          "description": "One entry per dimension: whether the split helped it, where the evidence comes from, and a note.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["latency", "throughput", "blast_radius"],
+          "properties": {
+            "latency": {"$ref": "#/$defs/dimension"},
+            "throughput": {"$ref": "#/$defs/dimension"},
+            "blast_radius": {"$ref": "#/$defs/dimension"}
+          }
+        },
+        "recommendation": {
+          "description": "Which topology to tell Dana to run, or that these runs cannot settle it, with the note she reads.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision", "note"],
+          "properties": {
+            "decision": {
+              "description": "keep_split, run_single, or not_settled.",
+              "enum": ["keep_split", "run_single", "not_settled"]
+            },
+            "note": {
+              "description": "In Dana's terms: what two services gain, what they cost operationally, which way you would go, and one limit of what two local runs prove.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "trace_id": {
+      "description": "A Jaeger trace id, lowercase hexadecimal, copied from a summary's sampled trace list.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{16,32}$"
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readings_p95_ms",
+        "status_p95_ms",
+        "throughput_per_second",
+        "failure_window_errors",
+        "sampled_trace_id"
+      ],
+      "properties": {
+        "readings_p95_ms": {
+          "description": "The summary's readings_p95_ms: p95 latency of reading submissions, in milliseconds.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "status_p95_ms": {
+          "description": "The summary's status_p95_ms: p95 latency of status reads, in milliseconds.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "throughput_per_second": {
+          "description": "The summary's throughput_per_second: readings carried from accepted to terminal per second over the run.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "failure_window_errors": {
+          "description": "The summary's failure_window_errors: failed requests and readings that ended FAILED inside the failure window.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "sampled_trace_id": {"$ref": "#/$defs/trace_id"}
+      }
+    },
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["split_effect", "evidence", "note"],
+      "properties": {
+        "split_effect": {
+          "description": "Whether running the API and the worker as two services made this dimension better, worse, or left a difference the two runs cannot support.",
+          "enum": ["helped", "hurt", "no_clear_difference"]
+        },
+        "evidence": {
+          "description": "Where the observation behind the value comes from.",
+          "enum": ["summaries", "traces", "both"]
+        },
+        "note": {
+          "description": "The figures or the trace detail behind the value, in plain words.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      }
+    }
+  }
+}

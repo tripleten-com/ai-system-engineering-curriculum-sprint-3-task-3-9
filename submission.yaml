@@ -1,0 +1,74 @@
+# Coldline - Task 3.9
+# File: submission.yaml
+# Component: Student answer sheet
+# Purpose: Record the figures from your own two topology runs, the trace pair you compared, the structured comparison, and the recommendation.
+# Interacts With: Submission schema, public verifier, topology contract checks, protected answer key
+# Sprint/Task: Sprint 3 - Project 3 / Task 3.9
+# Concepts: Topology, latency percentiles, throughput, blast radius, evidence-based recommendation
+# Tools: YAML
+
+# Complete submission.yaml from your own runs and the sources named beside each answer group.
+# Keep the supplied keys; replace empty strings and zeros using each field's stated type.
+# Empty values and placeholder text fail verification.
+# Use submission-sample.yaml for format only; do not copy its fictional values.
+# Do not include secrets, personal data, or local absolute paths.
+
+answers:
+  # Task 3.9 — Steps 1 and 2: the two runs
+  # Source: docs/student/topology/split-run.json and docs/student/topology/single-run.json,
+  # exactly as `poe topology-run` wrote them. Copy each of the four figures as written
+  # (readings_p95_ms, status_p95_ms and throughput_per_second are numbers,
+  # failure_window_errors is a whole number), and one trace id from the summary's
+  # sampled_traces list as sampled_trace_id. The check compares them field for field.
+  runs:
+    split:
+      readings_p95_ms: 0
+      status_p95_ms: 0
+      throughput_per_second: 0
+      failure_window_errors: 0
+      sampled_trace_id: ""
+    single:
+      readings_p95_ms: 0
+      status_p95_ms: 0
+      throughput_per_second: 0
+      failure_window_errors: 0
+      sampled_trace_id: ""
+
+  # Task 3.9 — Step 3: the trace pair
+  # Source: one sampled trace id from each summary, labelled inside the failure window, as
+  # you opened them in Jaeger. note: at most 300 characters, what the two traces show about
+  # where the time went and what the failure reached.
+  trace_pair:
+    split_trace_id: ""
+    single_trace_id: ""
+    note: ""
+
+  # Task 3.9 — Step 4: the comparison, one entry per dimension
+  # split_effect: helped | hurt | no_clear_difference
+  #   whether running the API and the worker as two services made this dimension better,
+  #   worse, or left a difference your two runs cannot support.
+  # evidence: summaries | traces | both
+  #   where the observation behind that value comes from.
+  # note: at most 300 characters, the figures or the trace detail behind the value.
+  comparison:
+    latency:
+      split_effect: ""
+      evidence: ""
+      note: ""
+    throughput:
+      split_effect: ""
+      evidence: ""
+      note: ""
+    blast_radius:
+      split_effect: ""
+      evidence: ""
+      note: ""
+
+  # Task 3.9 — Step 4: the recommendation
+  # decision: keep_split | run_single | not_settled
+  # note: at most 600 characters, in Dana's terms: what two services gain, what they cost in
+  #   operational terms (no invented figure), which way you would go, and one limit of what
+  #   two local runs prove.
+  recommendation:
+    decision: ""
+    note: ""

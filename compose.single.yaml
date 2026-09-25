@@ -1,0 +1,97 @@
+# Coldline - Task 3.9
+# File: compose.single.yaml
+# Component: Single-process topology override
+# Purpose: Run the API routes and the worker loop in one container, in place of the split api and worker services.
+# Interacts With: compose.yaml, infra/topology/single_process.py, pyproject.toml (poe start-single)
+# Sprint/Task: Sprint 3 - Project 3 / Task 3.9
+# Concepts: Topology, profile, blast radius
+# Tools: Docker Compose
+
+# Supplied, and never applied on its own. `poe start-single` layers it over compose.yaml:
+#
+#   docker compose --profile observability --profile localstack rm --stop --force api worker
+#   docker compose -f compose.yaml -f compose.single.yaml --profile observability \
+#     --profile localstack up --build --wait --remove-orphans
+#
+# It parks `api` and `worker` behind a Compose profile nothing activates, so neither
+# starts, and adds `single`: one container from the api image that runs
+# infra/topology/single_process.py, the API routes and the worker loop on one event loop.
+# PostgreSQL, Redis, LocalStack, the initializer, Jaeger, Prometheus, Alertmanager and
+# Grafana are unchanged and shared by both profiles. `poe start` (compose.yaml alone, with
+# --remove-orphans) removes `single` and brings `api` and `worker` back. Only one profile
+# runs at a time, and the API answers on the same host port in both.
+
+services:
+  api:
+    # Parked, not removed: an override cannot delete a service, but a profile no command
+    # activates keeps it from starting. `poe start-single` removes the running container
+    # first, so the host port below is free for `single`.
+    profiles: ["split-only"]
+
+  worker:
+    profiles: ["split-only"]
+
+  single:
+    image: coldline-api:${COLDLINE_RELEASE_TAG:-3.1.0}
+    build:
+      context: .
+      dockerfile: infra/containers/api.Dockerfile
+      args:
+        COLDLINE_BUILD_VERSION: ${COLDLINE_RELEASE_TAG:-3.1.0}
+    command: ["python", "infra/topology/single_process.py"]
+    environment:
+      # compose.yaml's shared x-coldline-environment, spelled out: a YAML anchor does not
+      # reach across files. Keep these values identical to compose.yaml's.
+      COLDLINE_DATABASE_URL: postgresql://coldline:coldline_local@postgres:5432/coldline
+      COLDLINE_REDIS_URL: redis://redis:6379/0
+      COLDLINE_OTEL_ENDPOINT: http://jaeger:4317
+      COLDLINE_S3_ENDPOINT: http://localstack:4566
+      COLDLINE_S3_BUCKET: coldline-corpus
+      COLDLINE_S3_REGION: us-east-1
+      COLDLINE_S3_ACCESS_KEY_ID: localstack-development-key
+      COLDLINE_S3_SECRET_ACCESS_KEY: localstack-development-secret
+      COLDLINE_QUEUE_VISIBILITY_TIMEOUT_SECONDS: "30"
+      COLDLINE_QUEUE_MAX_RECEIVE_COUNT: "3"
+      # The worker's own settings from compose.yaml, unchanged, so the loop that runs here
+      # is configured exactly as the split worker is: same attempts, same provider latency.
+      COLDLINE_CONSUMER_NAME: worker-1
+      COLDLINE_MAXIMUM_ATTEMPTS: "3"
+      COLDLINE_STALE_MESSAGE_MS: "30000"
+      COLDLINE_MODEL_LATENCY_MS: "250"
+      COLDLINE_METRICS_PORT: "9100"
+      # One process, one telemetry identity. Both halves' settings read this name, so every
+      # span of a reading's trace carries `coldline-single` instead of `coldline-api` and
+      # `coldline-worker`; that is what a trace from this profile looks like in Jaeger.
+      COLDLINE_SERVICE_NAME: coldline-single
+    depends_on:
+      initializer:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${COLDLINE_API_HOST_PORT:-8000}:8000"
+    restart: unless-stopped
+    # The same readiness gate as `api`: `up --wait` returns only when the routes serve.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=2)",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          # The split api (512M, 1.0 CPU) and worker (256M, 0.5 CPU) bounds added together,
+          # so the comparison measures the topology and not a smaller resource envelope.
+          memory: 768M
+          cpus: "1.5"
+    networks:
+      coldline:
+        # Prometheus scrapes `api:8000` and `worker:9100` by name (infra/observability/
+        # prometheus.yml). In this profile both names resolve to this one container, which
+        # serves the API metrics on 8000 and the worker metrics on 9100 from one process.
+        aliases: [api, worker]
