@@ -69,6 +69,9 @@ services:
     ports:
       - "127.0.0.1:${COLDLINE_API_HOST_PORT:-8000}:8000"
     restart: unless-stopped
+    # Docker's init runs as PID 1 and forwards the stop signal, as for `worker` in
+    # compose.yaml: this container runs the same worker loop.
+    init: true
     # The same readiness gate as `api`: `up --wait` returns only when the routes serve.
     healthcheck:
       test:
