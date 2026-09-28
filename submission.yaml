@@ -22,26 +22,30 @@ answers:
   # sampled_traces list as sampled_trace_id. The check compares them field for field.
   runs:
     split:
-      readings_p95_ms: 0
-      status_p95_ms: 0
-      throughput_per_second: 0
-      failure_window_errors: 0
-      sampled_trace_id: ""
+      readings_p95_ms: 2081.4
+      status_p95_ms: 8.4
+      throughput_per_second: 1.13
+      failure_window_errors: 4
+      sampled_trace_id: "3e68e06966d636a79788c8ce6e6159a6"
     single:
-      readings_p95_ms: 0
-      status_p95_ms: 0
-      throughput_per_second: 0
-      failure_window_errors: 0
-      sampled_trace_id: ""
+      readings_p95_ms: 2096.1
+      status_p95_ms: 1021.4
+      throughput_per_second: 1.15
+      failure_window_errors: 8
+      sampled_trace_id: "f5b514f46c0a96fa108246f33083d7c7"
 
   # Task 3.9 — Step 3: the trace pair
   # Source: one sampled trace id from each summary, labelled inside the failure window, as
   # you opened them in Jaeger. note: at most 300 characters, what the two traces show about
   # where the time went and what the failure reached.
   trace_pair:
-    split_trace_id: ""
-    single_trace_id: ""
-    note: ""
+    split_trace_id: "3e68e06966d636a79788c8ce6e6159a6"
+    single_trace_id: "f5b514f46c0a96fa108246f33083d7c7"
+    note: >-
+      Same 14 spans, same order: accept ends 202 in 14.6 vs 23.6 ms, then
+      model_provider.summarize holds 2503.5 vs 2501.8 ms and fails terminally, no retry. Only
+      the service names differ, coldline-api plus coldline-worker vs coldline-single, so in
+      single the stalled thread is the one serving dispatchers.
 
   # Task 3.9 — Step 4: the comparison, one entry per dimension
   # split_effect: helped | hurt | no_clear_difference
@@ -52,17 +56,27 @@ answers:
   # note: at most 300 characters, the figures or the trace detail behind the value.
   comparison:
     latency:
-      split_effect: ""
-      evidence: ""
-      note: ""
+      split_effect: "helped"
+      evidence: "both"
+      note: >-
+        Submissions match: p95 2081.4 vs 2096.1 ms (traces show every accept span under 51.5 and
+        117.5 ms, so that tail is connect cost in both). Status reads separate: p95 8.4 ms split
+        vs 1021.4 ms single, the runner's 1 s read timeout, with p50 4.2 vs 4.9 ms.
     throughput:
-      split_effect: ""
-      evidence: ""
-      note: ""
+      split_effect: "no_clear_difference"
+      evidence: "summaries"
+      note: >-
+        1.13 vs 1.15 readings/s, from 37 vs 36 submitted; the load step waits for each response,
+        so the denominator moves with it. Both runs drove every accepted reading terminal (33+4,
+        32+4) and settled in 32.8 s vs 31.3 s. 1.8 % is laptop noise.
     blast_radius:
-      split_effect: ""
-      evidence: ""
-      note: ""
+      split_effect: "helped"
+      evidence: "both"
+      note: >-
+        Split: 4 errors, all readings FAILED; 0 failed submissions, 0 failed status reads, 273
+        reads served. Single: 8 errors, the same 4 FAILED plus 4 status reads timed out, and
+        reads served fell to 67. Traces put the 2.5 s stall in coldline-single, the API's own
+        process.
 
   # Task 3.9 — Step 4: the recommendation
   # decision: keep_split | run_single | not_settled
@@ -70,5 +84,12 @@ answers:
   #   operational terms (no invented figure), which way you would go, and one limit of what
   #   two local runs prove.
   recommendation:
-    decision: ""
-    note: ""
+    decision: "keep_split"
+    note: >-
+      Two services buy the thing you named: when the provider hung, the dispatch floor kept
+      working. Split, every submission and all 273 status reads succeeded (p95 8.4 ms) and only 4
+      summaries were lost. In one process the same fault also timed out 4 status reads and cut
+      reads answered from 273 to 67. Throughput was the same, 1.13 vs 1.15 readings/s. The split
+      costs a second image, container, health check and deploy and monitoring unit, plus the
+      queue hop; it costs us no speed, so I would keep it. Limit: two 30 s laptop runs with one
+      fault prove nothing about money, more hosts, or real traffic.

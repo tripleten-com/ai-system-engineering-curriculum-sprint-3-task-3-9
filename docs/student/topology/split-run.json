@@ -1,0 +1,103 @@
+{
+  "compose_services": [
+    "api",
+    "worker"
+  ],
+  "digest": "sha256:9b78bd00cac61d6d60c790b181d2feea0ce87b2b2780031fb012cface66196f4",
+  "failure_window": {
+    "ended_at": "2026-09-28T10:00:58.279+00:00",
+    "ended_offset_seconds": 21.2,
+    "errors": {
+      "readings_failed": 4,
+      "status_reads_failed": 0,
+      "submissions_failed": 0
+    },
+    "fault": "stall",
+    "started_at": "2026-09-28T10:00:49.967+00:00",
+    "started_offset_seconds": 12.9
+  },
+  "failure_window_errors": 4,
+  "generator": "poe topology-run",
+  "load_step": {
+    "locustfile": "loadtest/locustfile.py",
+    "run_seconds": 30.0,
+    "spawn_rate": 2.0,
+    "users": 2
+  },
+  "profile": "split",
+  "readings_completed": 33,
+  "readings_failed": 4,
+  "readings_p50_ms": 21.4,
+  "readings_p95_ms": 2081.4,
+  "readings_submitted": 37,
+  "recorded_at": "2026-09-28T10:01:22+00:00",
+  "run_seconds": 32.8,
+  "sampled_traces": [
+    {
+      "accepted_offset_seconds": 13.2,
+      "exception_id": "exc-ef29e777-d513-560f-bd91-8c1343779855",
+      "failure_reason": "model_provider_terminal_failure",
+      "jaeger_url": "http://localhost:16686/trace/3e68e06966d636a79788c8ce6e6159a6",
+      "state": "FAILED",
+      "trace_id": "3e68e06966d636a79788c8ce6e6159a6",
+      "window": "inside"
+    },
+    {
+      "accepted_offset_seconds": 13.3,
+      "exception_id": "exc-10a49d39-5a45-56b3-b79a-430a19f5009c",
+      "failure_reason": "model_provider_terminal_failure",
+      "jaeger_url": "http://localhost:16686/trace/54adc75f98128a3ab79ac5c3883c205a",
+      "state": "FAILED",
+      "trace_id": "54adc75f98128a3ab79ac5c3883c205a",
+      "window": "inside"
+    },
+    {
+      "accepted_offset_seconds": 14.4,
+      "exception_id": "exc-640ae532-34a7-5188-b2ce-ff1ca6a49a45",
+      "failure_reason": "model_provider_terminal_failure",
+      "jaeger_url": "http://localhost:16686/trace/ad82a70eb94da146e3a1ee0bd24c49a9",
+      "state": "FAILED",
+      "trace_id": "ad82a70eb94da146e3a1ee0bd24c49a9",
+      "window": "inside"
+    },
+    {
+      "accepted_offset_seconds": 8.7,
+      "exception_id": "exc-72c8e12a-5aba-5d26-bd17-efd739c28f2b",
+      "failure_reason": null,
+      "jaeger_url": "http://localhost:16686/trace/1e20bb2b1067b144d9e2720f1041b57e",
+      "state": "COMPLETED",
+      "trace_id": "1e20bb2b1067b144d9e2720f1041b57e",
+      "window": "outside"
+    },
+    {
+      "accepted_offset_seconds": 9.0,
+      "exception_id": "exc-f273525d-3c98-558b-8cd7-5872e062b19b",
+      "failure_reason": null,
+      "jaeger_url": "http://localhost:16686/trace/a9233094adefacd439854ef60759188b",
+      "state": "COMPLETED",
+      "trace_id": "a9233094adefacd439854ef60759188b",
+      "window": "outside"
+    },
+    {
+      "accepted_offset_seconds": 12.1,
+      "exception_id": "exc-50d7d8bd-b56d-5c1f-a878-11a4fa967a05",
+      "failure_reason": null,
+      "jaeger_url": "http://localhost:16686/trace/ccc4bb2b3c14fdcf28945ac358251d2d",
+      "state": "COMPLETED",
+      "trace_id": "ccc4bb2b3c14fdcf28945ac358251d2d",
+      "window": "outside"
+    }
+  ],
+  "schema": "coldline-topology-run/1",
+  "status_p50_ms": 4.2,
+  "status_p95_ms": 8.4,
+  "status_reads": {
+    "count": 273,
+    "failed": 0
+  },
+  "submissions": {
+    "count": 37,
+    "failed": 0
+  },
+  "throughput_per_second": 1.13
+}
