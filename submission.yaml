@@ -22,26 +22,31 @@ answers:
   # sampled_traces list as sampled_trace_id. The check compares them field for field.
   runs:
     split:
-      readings_p95_ms: 0
-      status_p95_ms: 0
-      throughput_per_second: 0
-      failure_window_errors: 0
-      sampled_trace_id: ""
+      readings_p95_ms: 2096.5
+      status_p95_ms: 7.6
+      throughput_per_second: 1.17
+      failure_window_errors: 4
+      sampled_trace_id: "fe879f670abcbc12fce6dfeccc98d3c2"
     single:
-      readings_p95_ms: 0
-      status_p95_ms: 0
-      throughput_per_second: 0
-      failure_window_errors: 0
-      sampled_trace_id: ""
+      readings_p95_ms: 2122.8
+      status_p95_ms: 1031.3
+      throughput_per_second: 1.15
+      failure_window_errors: 8
+      sampled_trace_id: "de6c6eec3a001d01694413edeae78416"
 
   # Task 3.9 — Step 3: the trace pair
   # Source: one sampled trace id from each summary, labelled inside the failure window, as
   # you opened them in Jaeger. note: at most 300 characters, what the two traces show about
   # where the time went and what the failure reached.
   trace_pair:
-    split_trace_id: ""
-    single_trace_id: ""
-    note: ""
+    split_trace_id: "fe879f670abcbc12fce6dfeccc98d3c2"
+    single_trace_id: "de6c6eec3a001d01694413edeae78416"
+    note: >-
+      Same shape: accept ends at job_queue.publish (23.3 vs 16.4 ms, 202), then
+      process_exception holds model_provider.summarize 2510 vs 2504 ms, ending
+      ERROR TerminalProviderError, no retry. Only service names differ,
+      coldline-api+coldline-worker vs coldline-single: the stall holds that one
+      process.
 
   # Task 3.9 — Step 4: the comparison, one entry per dimension
   # split_effect: helped | hurt | no_clear_difference
@@ -52,17 +57,29 @@ answers:
   # note: at most 300 characters, the figures or the trace detail behind the value.
   comparison:
     latency:
-      split_effect: ""
-      evidence: ""
-      note: ""
+      split_effect: "helped"
+      evidence: "summaries"
+      note: >-
+        Submissions are level: readings_p95_ms 2096.5 split vs 2122.8 single
+        (p50 23.6 vs 24.1). Status reads are not: status_p95_ms 7.6 split vs
+        1031.3 single, which is the poller's 1 s timeout, while status_p50_ms
+        is 4.4 vs 5.1.
     throughput:
-      split_effect: ""
-      evidence: ""
-      note: ""
+      split_effect: "no_clear_difference"
+      evidence: "summaries"
+      note: >-
+        throughput_per_second 1.17 split vs 1.15 single, under 2 % apart: 34 of
+        38 readings terminal in 32.4 s vs 32 of 36 in 31.2 s, 4 FAILED in each.
+        The closed-loop load step submitted two fewer readings, which alone
+        explains the gap.
     blast_radius:
-      split_effect: ""
-      evidence: ""
-      note: ""
+      split_effect: "helped"
+      evidence: "both"
+      note: >-
+        Same window, same 4 readings FAILED, but single also lost 4 status
+        reads (8 errors vs 4) and completed 65 reads vs 275. Traces: the 2.5 s
+        stalled summarize span is coldline-worker in split, coldline-single in
+        the one process serving reads.
 
   # Task 3.9 — Step 4: the recommendation
   # decision: keep_split | run_single | not_settled
@@ -70,5 +87,14 @@ answers:
   #   operational terms (no invented figure), which way you would go, and one limit of what
   #   two local runs prove.
   recommendation:
-    decision: ""
-    note: ""
+    decision: "keep_split"
+    note: >-
+      Keep two services. When the summary side had its bad day, the split
+      profile kept the dispatch floor whole: every submission and all 275
+      status reads answered, 7.6 ms at p95. One process lost 4 status reads and
+      its p95 hit the 1 s timeout, so dispatchers chasing a shipment would have
+      seen it. Throughput was the same (1.17 vs 1.15/s), so the split buys
+      containment, not speed. It costs a second container to deploy, monitor,
+      page on and patch, plus the queue between them. Limit: two
+      30 s runs on my laptop, so I can price the protection but not the money,
+      and not behaviour under real traffic.
