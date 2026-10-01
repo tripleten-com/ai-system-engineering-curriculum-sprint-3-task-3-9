@@ -51,6 +51,10 @@ Task: both profiles publish the API on `COLDLINE_API_HOST_PORT`, and `poe topolo
 trace lookups. Changing an override between the two runs makes the two summaries describe
 different experiments.
 
+This Task runs as its own Compose project, `coldline-task-3-9`. If an earlier Task's stack is
+still running, run `poe stop` in that Task's repository first; otherwise `poe start` here fails
+because the published ports are already taken.
+
 PostgreSQL, Redis, worker metrics, and OTLP remain inside the Compose network. Codespaces uses the
 same `compose.yaml` and keeps every forwarded port private. Redis keeps running in this Task only
 for an earlier checkpoint's own contract test; no composition root reads it anymore.
