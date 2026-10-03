@@ -28,8 +28,8 @@ _Write your evidence here._
 
 ## Comparison
 
-One paragraph per dimension, each naming the figures from both summaries and the trace it
-rests on. Latency: `readings_p95_ms` and `status_p95_ms` side by side. Throughput:
+One paragraph per dimension, each naming the figures from both summaries and, where a trace
+bears on it, the trace. Latency: `readings_p95_ms` and `status_p95_ms` side by side. Throughput:
 `throughput_per_second` side by side. Blast radius: the errors inside each failure window and
 which kind they were (failed submissions, failed status reads, readings that ended `FAILED`).
 Then the trace pair: which service names appear in each, where the accept span ends and where

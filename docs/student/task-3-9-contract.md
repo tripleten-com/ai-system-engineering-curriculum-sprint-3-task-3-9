@@ -27,7 +27,7 @@ recommendation for Dana. You write no application code, and you never edit a sum
 | The split profile | `compose.yaml`, `poe start` | The topology you run today: `api` and `worker` in two containers. `poe start` now also removes a running `single` container, so it replaces the other profile. |
 | The single-process profile | `compose.single.yaml`, `infra/topology/single_process.py`, `poe start-single` | One `single` container from the api image that serves the API routes and runs the worker loop on one event loop, with the same PostgreSQL, LocalStack, Jaeger and Prometheus around it. The API answers on the same host port. |
 | The pinned load step | `loadtest/locustfile.py`, `infra/topology/load_step.py` | The traffic shape `poe load-test` sends (two users, 1.0 to 1.4 s between submissions, 30 s), fixed so two runs are comparable. |
-| The provider failure | `src/adapters/model/faults.py` | The emulator's fault control. Its one fault, `stall`, makes every provider call block its thread for 2.5 s and then fail terminally, so the reading ends `FAILED`. `poe topology-run` applies it 10 s into the run and lifts it at 20 s. |
+| The provider failure | `src/adapters/model/faults.py` | The emulator's fault control. Its one fault, `stall`, makes every provider call block its thread for 2.5 s and then fail terminally, so the reading ends `FAILED`. `poe topology-run` applies it 10 s after the load step's first request and lifts it at 20 s. |
 | The experiment | `infra/topology/topology_run.py`, `poe topology-run` | Detects the running profile, runs the load step, polls every accepted reading to a terminal state, applies and lifts the failure, samples traces from Jaeger, and writes the summary. |
 | The record template | `docs/student/task-3-9-topology-record.md` | One section per profile and one for the comparison. |
 
@@ -74,9 +74,11 @@ poe topology-contract # both halves together; the check poe verify runs for this
 poe verify            # the full public path, from the split profile
 ```
 
-`poe topology-run` takes about a minute per profile: the load step runs for 30 s, the failure
-window sits between 10 s and 20 s, and the run then waits for the accepted readings to settle
-and for Jaeger to have exported the sampled traces. It refuses to start against a stack whose
+`poe topology-run` takes about a minute per profile: the run's clock starts at the load step's
+first request, the load step runs for 30 s from there, the failure window sits between 10 s and
+20 s on that clock, and the run then waits for the accepted readings to settle and for Jaeger to
+have exported the sampled traces. A slow Locust start on a first run only delays the run; it
+never shortens the load or moves the window. It refuses to start against a stack whose
 `/health/ready` is not 200, lifts any fault an interrupted run left behind, and never leaves
 one applied. Keep any host-port override in place for every command; the runner reads
 `COLDLINE_API_HOST_PORT` and `COLDLINE_JAEGER_HOST_PORT` the same way the stack does.
@@ -92,7 +94,7 @@ Every field below is written by `poe topology-run`, and the check reads it as wr
 | `readings_p95_ms`, `readings_p50_ms` | Latency of the successful `POST /api/v1/readings` requests over the whole run |
 | `status_p95_ms`, `status_p50_ms` | Latency of the successful `GET /api/v1/exceptions/{exception_id}` reads; a read that timed out (1 s) is a failed status read, not a latency |
 | `throughput_per_second` | Readings that reached a terminal state, divided by the seconds from the first request to the moment the last reading settled |
-| `failure_window` | The fault, when it was applied and lifted (timestamps and offsets into the run), and the errors inside it by kind: failed submissions, failed status reads, readings that ended `FAILED` |
+| `failure_window` | The fault, when it was applied and lifted (timestamps, and offsets from the load step's first request), and the errors inside it by kind: failed submissions, failed status reads, readings that ended `FAILED` |
 | `failure_window_errors` | The three kinds added together |
 | `sampled_traces` | A few readings' Jaeger trace ids, each labelled `inside` (its summary attempt met the failure: it ended `FAILED` because of the fault, or reached its terminal state while the window was open) or `outside`, with the reading's state and a Jaeger link |
 | `generator`, `digest` | The generator marker and a SHA-256 content digest over the rest of the file |
