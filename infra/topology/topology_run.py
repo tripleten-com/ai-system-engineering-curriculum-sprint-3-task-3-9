@@ -21,14 +21,19 @@ topology alone. In order, it
    ``loadtest/locustfile.py`` with ``poe load-test``'s users, spawn rate and 30 s) and, as
    each accepted reading arrives, polls its status every half second until it reaches a
    terminal state;
-3. ten seconds in, applies the supplied provider failure (``stall``) through the emulator's
-   fault control inside the container that runs the worker loop, and lifts it again ten
-   seconds later, so the failure window sits inside the run;
-4. after the load step ends, waits for every accepted reading to settle;
-5. looks up one Jaeger trace for a few of the readings, some whose summary attempt met the
+3. waits for the load step's first request and starts the run's clock there, not at the
+   launch: starting Locust can take seconds on a first run, and a clock started at the
+   launch would open the failure window before any reading and count that idle start in
+   the throughput of whichever profile ran first;
+4. ten seconds after that first request, applies the supplied provider failure (``stall``)
+   through the emulator's fault control inside the container that runs the worker loop,
+   and lifts it again ten seconds later, so the failure window sits inside the load step;
+5. after the load step ends, waits for every accepted reading to settle;
+6. looks up one Jaeger trace for a few of the readings, some whose summary attempt met the
    failure window and some outside it;
-6. writes ``docs/student/topology/<profile>-run.json`` with a generator marker and a
-   content digest that ``poe topology-contract`` verifies.
+7. writes ``docs/student/topology/<profile>-run.json`` with a generator marker and a
+   content digest that ``poe topology-contract`` verifies. Every offset in it counts from
+   the first request.
 
 Definitions used in the summary, so the two runs are read the same way:
 
@@ -92,6 +97,10 @@ STATUS_POLL_INTERVAL_SECONDS = 0.5
 STATUS_READ_TIMEOUT_SECONDS = 1.0
 SETTLE_TIMEOUT_SECONDS = 120.0
 LOAD_STEP_GRACE_SECONDS = 30.0
+# How long the load step may take to send its first request. The run's clock starts at that
+# request, so a slow Locust start delays the run instead of eating into its load or its
+# failure window.
+LOAD_STEP_START_TIMEOUT_SECONDS = 60.0
 TERMINAL_STATES = frozenset({"COMPLETED", "FAILED"})
 FAULT_FAILURE_REASON = "model_provider_terminal_failure"
 SAMPLES_PER_SIDE = 3
@@ -122,6 +131,9 @@ class RunLog:
     status_reads: list[dict[str, Any]] = field(default_factory=list)
     readings: dict[str, Reading] = field(default_factory=dict)
     load_step_errors: list[str] = field(default_factory=list)
+    # When the load step's first request started; set once, by the first record that arrives.
+    first_request_at: float | None = None
+    first_request: threading.Event = field(default_factory=threading.Event)
 
     def pending(self) -> list[Reading]:
         """Return the readings that have not reached a terminal state yet."""
@@ -312,6 +324,9 @@ def _record_submission(log: RunLog, record: dict[str, Any]) -> None:
         )
         if ok and isinstance(exception_id, str) and exception_id not in log.readings:
             log.readings[exception_id] = Reading(exception_id=exception_id, accepted_at=started)
+        if log.first_request_at is None:
+            log.first_request_at = started
+            log.first_request.set()
 
 
 def poll_statuses(base_url: str, log: RunLog, stop: threading.Event) -> None:
@@ -553,6 +568,34 @@ def _log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
 
 
+def _wait_for_first_request(
+    process: subprocess.Popen[str], log: RunLog, launched_at: float
+) -> float:
+    """Return when the load step's first request started; the run's clock starts there."""
+    deadline = launched_at + LOAD_STEP_START_TIMEOUT_SECONDS
+    while not log.first_request.wait(timeout=0.2):
+        if process.poll() is not None:
+            detail = "\n".join(log.load_step_errors[-10:]) or "no detail"
+            raise TopologyRunError(
+                f"the load step stopped before its first request (exit {process.returncode}):"
+                f"\n{detail}"
+            )
+        if time.time() >= deadline:
+            raise TopologyRunError(
+                f"the load step sent no request within {LOAD_STEP_START_TIMEOUT_SECONDS:.0f} s "
+                "of starting; check the API and rerun"
+            )
+    with log.lock:
+        first_request_at = log.first_request_at
+    if first_request_at is None:  # the event is only set together with the value
+        raise TopologyRunError("the load step reported no first request; rerun")
+    _log(
+        f"load step sent its first request {first_request_at - launched_at:.1f} s after "
+        "starting; the run's clock starts there"
+    )
+    return first_request_at
+
+
 def _drive_failure_window(profile: str, started_at: float) -> tuple[float, float]:
     """Apply the supplied fault partway through the load step and lift it again.
 
@@ -625,13 +668,14 @@ def run() -> Path:
 
     log = RunLog()
     stop = threading.Event()
-    started_at = time.time()
+    launched_at = time.time()
     process, reader = start_load_step(base_url, log)
     poller = threading.Thread(
         target=poll_statuses, args=(base_url, log, stop), name="status-poller", daemon=True
     )
     poller.start()
     try:
+        started_at = _wait_for_first_request(process, log, launched_at)
         window = _drive_failure_window(profile, started_at)
         readings, settled_at = _wait_to_settle(process, reader, log, started_at)
     finally:
