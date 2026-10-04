@@ -96,3 +96,13 @@ def test_a_load_step_that_never_sends_is_reported(monkeypatch: pytest.MonkeyPatc
 
     with pytest.raises(runner.TopologyRunError, match="sent no request"):
         runner._wait_for_first_request(_FakeLoadStep(), runner.RunLog(), time.time())
+
+
+def test_the_run_zero_moves_to_an_earlier_request_that_answered_later() -> None:
+    """A request that started first but answered second sets the zero, so no offset is negative."""
+    log = runner.RunLog()
+    runner._record_submission(log, _record(100.02, "exc-1"))
+    runner._record_submission(log, _record(100.0, "exc-2"))
+
+    assert log.first_request_at == 100.02
+    assert runner._earliest_request_start(log, 100.02) == 100.0

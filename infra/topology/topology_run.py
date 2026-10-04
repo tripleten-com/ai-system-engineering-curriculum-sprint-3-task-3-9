@@ -24,7 +24,8 @@ topology alone. In order, it
 3. waits for the load step's first request and starts the run's clock there, not at the
    launch: starting Locust can take seconds on a first run, and a clock started at the
    launch would open the failure window before any reading and count that idle start in
-   the throughput of whichever profile ran first;
+   the throughput of whichever profile ran first. Once the run settles, the clock's zero
+   moves to the earliest request start, so no offset in the summary comes out negative;
 4. ten seconds after that first request, applies the supplied provider failure (``stall``)
    through the emulator's fault control inside the container that runs the worker loop,
    and lifts it again ten seconds later, so the failure window sits inside the load step;
@@ -596,6 +597,17 @@ def _wait_for_first_request(
     return first_request_at
 
 
+def _earliest_request_start(log: RunLog, first_request_at: float) -> float:
+    """Return the earliest request start, so no offset in the summary comes out negative.
+
+    The clock starts at the first request whose record comes back. With two users, a request
+    that started a few milliseconds earlier can answer later; its start is the run's zero.
+    """
+    with log.lock:
+        starts = [float(entry["started_at"]) for entry in log.submissions]
+    return min([first_request_at, *starts])
+
+
 def _drive_failure_window(profile: str, started_at: float) -> tuple[float, float]:
     """Apply the supplied fault partway through the load step and lift it again.
 
@@ -685,6 +697,7 @@ def run() -> Path:
         if process.poll() is None:
             process.kill()
         poller.join(timeout=STATUS_READ_TIMEOUT_SECONDS * 4)
+    started_at = _earliest_request_start(log, started_at)
     _log(f"settled: {len(readings)} readings terminal {settled_at - started_at:.1f} s after start")
 
     sampled = sample_traces(profile, readings, window, started_at)
