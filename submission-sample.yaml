@@ -31,7 +31,7 @@ answers:
   trace_pair:
     split_trace_id: "9f8e7d6c5b4a39281706f5e4d3c2b1a0"
     single_trace_id: "0a1b2c3d4e5f60718293a4b5c6d7e8f9"
-    note: "Fictional: both traces show the accept span ending before the summarize span begins; the failure reached only the summarize span in one and the accept span too in the other."
+    note: "Fictional: the service names in each trace, where the accept span ends and the summarize span begins, and what the failure did to the summarize span."
   comparison:
     latency:
       split_effect: "hurt"

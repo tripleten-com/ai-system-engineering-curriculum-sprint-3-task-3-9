@@ -13,6 +13,8 @@ Tools:             Python 3.12, Locust, gevent
 The traffic shape is not defined here. It is ``ColdlineUser`` from ``loadtest/locustfile.py``,
 loaded from that file exactly as ``locust -f loadtest/locustfile.py`` (``poe load-test``)
 loads it, and run with the same user count, spawn rate and duration ``poe load-test`` uses.
+The duration counts from the first request rather than from the launch, so a slow first
+request on a cold start delays the load instead of shortening it.
 What this module adds is the per-request record the topology run needs and Locust's summary
 tables do not give: for every request, when it started, how long it took, whether it
 succeeded, and which exception the API accepted, one JSON object per line on standard
@@ -62,6 +64,9 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging("WARNING")  # type: ignore[no-untyped-call]
     environment = Environment(user_classes=[load_user_class()], host=args.host)
     counts = {"requests": 0, "failures": 0}
+    # The run time starts at the first request, which is also where topology_run starts its
+    # clock; started at the launch, a cold first request would cut the load short.
+    run_timer: list[Any] = []
 
     def on_request(
         request_type: str,
@@ -86,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
         counts["requests"] += 1
         if exception is not None:
             counts["failures"] += 1
+        if not run_timer:
+            run_timer.append(gevent.spawn_later(args.run_time, runner.quit))
         start_time = kwargs.get("start_time")
         record = {
             "kind": "request",
@@ -103,7 +110,6 @@ def main(argv: list[str] | None = None) -> int:
     environment.events.request.add_listener(on_request)  # type: ignore[no-untyped-call]
     runner = environment.create_local_runner()
     runner.start(args.users, spawn_rate=args.spawn_rate)
-    gevent.spawn_later(args.run_time, runner.quit)
     runner.greenlet.join()
     print(json.dumps({"kind": "done", **counts}, sort_keys=True), flush=True)
     return 0
