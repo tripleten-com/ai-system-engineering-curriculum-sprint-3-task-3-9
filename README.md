@@ -9,14 +9,12 @@ provider failure against whichever profile is running, and a record template. Yo
 experiment twice, compare the two generated summaries and one pair of traces, and record a
 structured conclusion and a recommendation for Dana. This Task is optional and adds no code.
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/tripleten-com/ai-system-engineering-curriculum-sprint-3-task-3-9/tree/main)
-
 ## Start the system
 
 Prerequisites are Python 3.12, git, and Docker with Compose v2. The supplied bootstrap supports
 macOS arm64/x86-64, Windows x86-64, and Linux x86-64/aarch64, and installs pinned uv 0.11.8
-under `.tools/bin`. If your computer cannot run the stack locally, use the Codespaces button
-above.
+under `.tools/bin`. If your computer cannot run the stack locally, ask your instructor about GitHub
+Codespaces.
 
 On macOS and most Linux distributions the interpreter is `python3`; substitute it wherever these
 commands say `python`.
